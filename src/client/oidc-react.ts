@@ -5,6 +5,7 @@ import Oidc, {
   WebStorageStateStore,
   User
 } from 'oidc-client';
+import HttpStatusCode from 'http-status-typed';
 
 import {
   Client,
@@ -23,6 +24,7 @@ import {
   ClientConfig
 } from './index';
 import { AnyObject } from '../common';
+import createHttpPoller from './http-poller';
 
 let client: Client | null = null;
 
@@ -308,6 +310,45 @@ export function createOidcClient(): Client {
     ...clientFunctions
   };
   bindEvents(manager, { onAuthChange, eventTrigger, setError });
+
+  const userInfoFetchFunction = async (): Promise<Response | undefined> => {
+    const uri = await manager.metadataService.getUserInfoEndpoint();
+    const tokens = getUserTokens();
+    const accessToken = tokens && tokens.accessToken;
+    if (!accessToken) {
+      return Promise.reject(new Error('Access token not set'));
+    }
+    const headers = new Headers();
+    headers.append('Authorization', `Bearer ${accessToken}`);
+
+    return fetch(uri, {
+      method: 'GET',
+      headers
+    });
+  };
+
+  const userSessionValidityPoller = createHttpPoller({
+    pollFunction: userInfoFetchFunction,
+    shouldPoll: () => isAuthenticated(),
+    onError: returnedHttpStatus => {
+      if (
+        isAuthenticated() &&
+        returnedHttpStatus &&
+        (returnedHttpStatus === HttpStatusCode.FORBIDDEN ||
+          returnedHttpStatus === HttpStatusCode.UNAUTHORIZED)
+      ) {
+        setError({ type: ClientError.UNEXPECTED_AUTH_CHANGE, message: '' });
+        return { keepPolling: false };
+      }
+      return { keepPolling: isAuthenticated() };
+    }
+  });
+  clientFunctions.addListener(ClientEvent.AUTHORIZED, () => {
+    userSessionValidityPoller.start();
+  });
+  clientFunctions.addListener(ClientEvent.UNAUTHORIZED, () => {
+    userSessionValidityPoller.stop();
+  });
   return client;
 }
 
