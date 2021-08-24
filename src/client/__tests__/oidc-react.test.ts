@@ -18,6 +18,7 @@ import { createOidcClient } from '../oidc-react';
 import { mockMutatorGetterOidc } from '../__mocks__/oidc-react-mock';
 import config from '../../config';
 import { AnyObject } from '../../common';
+import { getHttpPollerMockData } from '../__mocks__/http-poller';
 
 describe('Oidc client ', () => {
   let client: Client;
@@ -172,6 +173,41 @@ describe('Oidc client ', () => {
       expect(mockMutator.getInitCallCount()).toBe(0);
       const user = client.getUserProfile();
       expect(user && user.email).toBe(email);
+    });
+  });
+  describe('Session polling ', () => {
+    beforeEach(() => {
+      initTests();
+    });
+    afterEach(() => {
+      clearTests();
+    });
+
+    it('starts when client status changes to ClientStatus.AUTHORIZED', async () => {
+      expect(client.getStatus()).toBe(ClientStatus.NONE);
+      mockMutator.setLoadProfilePayload(
+        undefined,
+        new Error('profile load failed')
+      );
+      await to(client.init());
+      expect(client.getStatus()).toBe(ClientStatus.UNAUTHORIZED);
+      // stop is called because ClientStatus.UNAUTHORIZED event is dispatched on init
+      expect(getHttpPollerMockData().stop).toHaveBeenCalledTimes(1);
+      expect(getHttpPollerMockData().start).toHaveBeenCalledTimes(0);
+
+      mockMutator.setUser(mockMutator.createValidUserData());
+      client.onAuthChange(true);
+      expect(client.getStatus()).toBe(ClientStatus.AUTHORIZED);
+      expect(getHttpPollerMockData().start).toHaveBeenCalledTimes(1);
+      expect(getHttpPollerMockData().stop).toHaveBeenCalledTimes(1);
+    });
+    it('auto starts when client is authorized and stops when status changes to ClientStatus.UNAUTHORIZED', async () => {
+      await to(client.init());
+      expect(client.getStatus()).toBe(ClientStatus.AUTHORIZED);
+      expect(getHttpPollerMockData().start).toHaveBeenCalledTimes(1);
+      client.onAuthChange(false);
+      expect(client.getStatus()).toBe(ClientStatus.UNAUTHORIZED);
+      expect(getHttpPollerMockData().stop).toHaveBeenCalledTimes(1);
     });
   });
 });

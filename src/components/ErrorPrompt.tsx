@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Notification } from 'hds-react';
 
-import { useClientErrorDetection } from '../client/hooks';
+import { useClientErrorDetection, useClient } from '../client/hooks';
 import { ClientErrorObject, ClientError } from '../client';
 import styles from './styles.module.css';
 
@@ -12,6 +12,7 @@ const ErrorPrompt = (
     undefined
   );
   const newError = useClientErrorDetection();
+  const client = useClient();
   const lastErrorType = dismissedError && dismissedError.type;
   const newErrorType = newError && newError.type;
   if (lastErrorType === newErrorType) {
@@ -26,13 +27,19 @@ const ErrorPrompt = (
           <Notification
             label="Error"
             type="error"
-            onClose={(): void => setDismissedError(newError)}
+            onClose={(): void => {
+              setDismissedError(newError);
+              if (sessionEndedElsewhere) {
+                client.logout();
+              }
+            }}
             dismissible
             closeButtonLabelText="Sulje">
             {sessionEndedElsewhere ? (
               <p>
                 Käyttäjän sessio on päättynyt ilman uloskirjautumista tässä
-                ikkunassa
+                selainikkunassa. <br /> <br /> Sinut kirjataan ulos myös tästä,
+                kun suljet tämän ilmoituksen.
               </p>
             ) : (
               <>

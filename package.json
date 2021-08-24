@@ -30,6 +30,7 @@
     "hds-core": "0.21.0",
     "hds-design-tokens": "0.21.0",
     "hds-react": "0.21.0",
+    "http-status-typed": "^1.0.0",
     "jwt-decode": "^3.0.0",
     "oidc-client": "1.11.5",
     "react": "^16.11.0",

@@ -42,3 +42,5 @@ jest.mock('oidc-client', () => {
     UserManager: MockUserManagerClass
   };
 });
+
+jest.mock('./client/http-poller');
