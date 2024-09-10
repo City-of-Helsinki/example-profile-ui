@@ -45,7 +45,7 @@
     "react-scripts": "5.0.1",
     "redux": "^4.2.0",
     "redux-starter-kit": "^1.0.0",
-    "typescript": "^4.7.0"
+    "typescript": "^4.9.5"
   },
   "scripts": {
     "start": "yarn run update-runtime-env && react-scripts start",
